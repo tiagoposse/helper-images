@@ -1,0 +1,50 @@
+---
+kind: pipeline
+type: kubernetes
+name: zipalign
+
+trigger:
+  branch:
+    - main
+  paths:
+    includes:
+      - "zipalign.dockerfile"
+
+steps:
+- name: prep versions
+  image: alpine
+  commands:
+    - echo "latest" > .tags
+
+- name: docker build
+  image: plugins/docker
+  settings:
+    repo: registry-docker-registry.tools.svc.cluster.local:5000/zipaligner
+    registry: registry-docker-registry.tools.svc.cluster.local:5000
+    dockerfile: zipalign.dockerfile
+    insecure: true
+---
+kind: pipeline
+type: kubernetes
+name: helm-build
+
+trigger:
+  branch:
+    - main
+  paths:
+    includes:
+      - "helm-build.dockerfile"
+
+steps:
+- name: prep versions
+  image: alpine
+  commands:
+    - echo "latest" > .tags
+
+- name: docker build helm
+  image: plugins/docker
+  settings:
+    repo: registry-docker-registry.tools.svc.cluster.local:5000/helm-build
+    registry: registry-docker-registry.tools.svc.cluster.local:5000
+    dockerfile: helm-build.dockerfile
+    insecure: true
