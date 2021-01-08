@@ -46,12 +46,10 @@ local components = [
     name: 'cluster-droid',
     args: [
       'HELM_VERSION=3.4.2',
-      'KUBECTL_VERSION=1.18.10',
-      'VAULT_VERSION=1.6.1'
+      'KUBECTL_VERSION=1.18.10'
     ]
   },
-  { name: 'vault-droid' },
-  // { name: 'vault-agent' }
+  { name: 'vault-agent' },
   { name: 'zipalign' }
 ];
 
@@ -79,12 +77,12 @@ local Pipeline(component) = {
     },
     {
       name: "build",
-      image: "registry.192.168.178.48.nip.io/drone-kaniko",
+      image: "registry.tiagoposse.com/drone-kaniko",
       settings: {
         username: "tiago",
         password: "empty",
-        repo: "registry-docker-registry.tools.svc.cluster.local:5000/" + component.name,
-        registry: "registry-docker-registry.tools.svc.cluster.local:5000",
+        repo: "registry.tiagoposse.com/" + component.name,
+        registry: "registry.tiagoposse.com",
         context: "./" + component.name,
         dockerfile: "./" + component.name + "/Dockerfile",
         insecure: true,

@@ -1,24 +1,36 @@
-import hvac, logging, re, os, time
-from utils import get_random_string
+import base64, hvac, logging, os, random, re, string, time, yaml
+from k8s import execute_kubectl
 
 DEFAULT_TTL = 2764800
 
+def get_random_string(length = 32):
+    chars = string.ascii_letters + string.digits
+    result_str = ''.join(random.choice(chars) for i in range(length))
+
+    return result_str
+
 class Vault:
-  def __init__(self, scheme, vault_addr, token_path = None, ca_cert_path = None):
+  def __init__(self, scheme, vault_addr, token_path = None, ca_cert_path = None, insecure = False):
     '''Configure the connection to a vault instance with the provided arguments'''
 
     self.scheme = scheme
     self.addr = vault_addr
     self.ca = ca_cert_path
+    self.insecure = insecure
 
-    if ca_cert_path != None:
-      self.client = hvac.Client(url=f"{ scheme }://{ vault_addr }", verify=ca_cert_path)
-    else:
-      self.client = hvac.Client(url=f"{ scheme }://{ vault_addr }", verify=False) # url=f"{ scheme }://vault-0.{ vault_addr }"
+    self._get_prefixed_client()
 
     if token_path != None:
       with open(token_path, 'r') as f:
         self.set_token(f.read().strip())
+
+  def _get_prefixed_client(self, prefix = ""):
+    if self.ca != None:
+      self.client = hvac.Client(url=f"{ self.scheme }://{ prefix }{ self.addr }", verify=self.ca)
+    elif self.insecure:
+      self.client = hvac.Client(url=f"{ self.scheme }://{ prefix }{ self.addr }", verify=False)
+    else:
+      self.client = hvac.Client(url=f"{ self.scheme }://{ prefix }{ self.addr }")
 
 
   def set_token(self, token):
@@ -104,34 +116,25 @@ class Vault:
     self.client.sys.submit_unseal_keys(keys=keys)
 
     for i in range(0, replicas):
-      if self.ca != None:
-        aux_client = hvac.Client(url=f"{ self.scheme }://vault-{ i }.{ self.addr }", verify=self.ca)
-      else:
-        aux_client = hvac.Client(url=f"{ self.scheme }://vault-{ i }.{ self.addr }", verify=False)
+      self._get_prefixed_client(f"vault-{ i }.")
 
       logging.info(f"Unsealing replica { i }")
       retry = 0
-      while retry < 3:
+      while retry < 5:
         try:
-          aux_client.sys.submit_unseal_keys(keys=keys)
-          retry = 4
+          self.client.sys.submit_unseal_keys(keys=keys)
+          break
         except:
           retry += 1
-          time.sleep(2)
+          time.sleep(3)
 
-    # while True:
-    #   resp = self.client.sys.read_health_status(method='GET')
-    #   if (not isinstance(resp, dict)) and resp.status_code == 429:
-    #     logging.debug("Not ready yet, wait")
-    #     time.sleep(1)
-    #   else:
-    #     time.sleep(5)
-    #     break
-
-
-      while aux_client.sys.is_sealed():
-        time.sleep(2)
-
+      retry = 0
+      while retry < 10:
+        if self.client.sys.is_sealed():
+          retry += 1
+          time.sleep(3)
+        else:
+          break
 
   def enable_secrets_engine(self, mount_point: str = 'kv', description: str = '', options: dict = {}, max_versions: int = 10):
     """
@@ -207,3 +210,93 @@ class Vault:
       method_type='userpass',
       path=path,
     )
+
+  def setup_vault(self, args):
+    logging.info("Creating clients...")
+
+    with open(args['config'], 'r') as f:
+      init_conf = yaml.safe_load(f.read())
+
+    self._get_prefixed_client('vault-0.')
+
+    print("In setup.")
+    token, keys = self.initialize_vault(init_conf['init']['shares'], init_conf['init']['threshold'])
+    print("After: " + token)
+    logging.info("Initialized.")
+
+    if token != None:
+      for k in keys:
+        logging.info(k)
+
+      logging.info("Creating secret with keys...")
+      execute_kubectl([
+        'create',
+        'secret',
+        'generic',
+        '-n',
+        args['details']['namespace'],
+        'vault',
+        f"--from-literal=root_key={ token }",
+        f"--from-literal=keys={ ','.join(keys) }"
+      ])
+
+      self.set_token(token)
+      with open('/tmp/token', 'w') as f:
+        f.write(token)
+
+      logging.info("Unsealing...")
+      self.unseal(keys[0:int(len(keys)/2+1)])
+      logging.info("Enable k8s auth...")
+
+      def_engine = { 'description': '', 'options': {}, 'config': {}, 'max_versions': 10 }
+      for engine in init_conf['engines']:
+        tmp = def_engine.copy()
+        tmp.update(engine)
+        engine = tmp
+
+        if engine['type'] == 'kubernetes':
+          with open(engine['ca'], 'r') as f:
+            ca = f.read()
+
+          vault_sa_secret = execute_kubectl(f"get sa -n { args['details']['namespace'] } -ojsonpath='{{.secrets[0].name}}' vault".split(" ")).decode()[1:-1]
+
+          vault_sa_token = base64.b64decode(execute_kubectl(f"get secret -n { args['details']['namespace'] } { vault_sa_secret } -ojsonpath='{{.data.token}}'".split(' '))).decode()
+
+          self.enable_kubernetes_auth(engine['address'], vault_sa_token, ca)
+        elif engine['type'] == 'userpass':
+          self.enable_userpass_auth(engine['mount_path'])
+        elif engine['type'] == 'pki':
+          self.enable_pki_engine(engine['mount_path'], engine['description'], engine['options'], engine['config'])
+        elif engine['type'] == 'kv':
+          self.enable_secrets_engine(engine['mount_path'], engine['description'], engine['options'], engine['max_versions'])
+
+
+  def process_deployment_vault(self, details: dict, base_path: str = ".", dry_run = False):
+    for pol in details['policies']:
+      if dry_run:
+        print(f"vault policy write { base_path }/vault/{ pol }.hcl")
+      else:
+        self.create_policy(pol, f"{ base_path }/vault/{ pol }.hcl")
+    
+    for role in details['roles']:
+      if dry_run:
+        print(f"vault write auth/kubernetes/role/{ role['name'] } bound_service_account_names={ role['sa'] } bound_service_account_namespaces={ role['namespaces'] } policies={ role['policies'] }")
+      else:
+        self.create_kubernetes_role(role['name'], role['sa'], role['namespaces'], role['policies'])
+
+    for secret in details['secrets']:
+      spl_path = secret['path'].split('/')
+
+      if dry_run:
+        val_string = ""
+        for k, v in secret['values'].items:
+          val_string += f"{ k }={ v } "
+
+        print(f"vault write { spl_path[0] }/{ '/'.join(spl_path[1:]) } { val_string }")
+      else:
+        self.create_secret_if_not_exists(
+          '/'.join(spl_path[1:]),
+          mount_point=spl_path[0],
+          values=secret['values'],
+          force=secret['force'] if 'force' in secret else False
+        )

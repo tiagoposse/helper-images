@@ -1,0 +1,92 @@
+---
+- calls:
+    - "-a"
+    - "--action"
+  help: What action to take
+  dest: action
+  env: PLUGIN_ACTION
+
+- calls:
+    - "-v"
+    - "--vault"
+  action: store
+  dest: vault_address
+  help: Address for Vault instance
+  env: VAULT_ADDR
+
+- calls:
+    - "-s"
+    - "--secret"
+  action: store
+  dest: secret
+  help: name of the secret where vault root key and unseal keys will be writen to,
+    defaults to `vault`
+  env: SECRET
+
+- calls:
+    - "-t"
+    - "--token"
+  action: store
+  dest: vault_token
+  help: Address for Vault instance
+  env: VAULT_TOKEN
+
+- calls:
+    - "-d"
+    - "--details"
+  action: store
+  dest: details
+  help: Path to the details file of this installation
+  env: DETAILS_PATH
+
+- calls:
+  - "--vault_ca"
+  action: store
+  dest: v_ca
+  help: Certificate authority path for Vault
+  env: VAULT_CACERT
+
+- calls:
+    - "-k"
+    - "--kubeconf"
+  action: store
+  dest: kubeconf
+  help: Base path to kubeconfig
+  env: KUBECONFIG
+
+- calls:
+    - "-i"
+    - "--insecure_vault"
+  action: store
+  dest: insecure_vault
+  help: Wether to use an insecure HTTPS vault
+  env: VAULT_TLS_SKIP_VERIFY
+
+- calls:
+    - "-c"
+    - "--config"
+  action: store
+  dest: config
+  help: Config file to use to setup vault
+  env: CONFIG_PATH
+
+- calls:
+    - "--hooks"
+  action: store
+  dest: hooks
+  help: What hooks to execute, can be "only", "pre" or "post"
+  env: HOOKS
+
+- calls:
+    - "--wait"
+  action: store_true
+  dest: wait
+  help: Controls if the run pauses until helm completion. This is always true if postInstall hooks are to be run.
+  env: WAIT
+
+- calls:
+    - "--dry_run"
+  action: store_true
+  dest: dry_run
+  help: Use this to print the commands that would be executed instead of actually executing them.
+  env: DRY_RUN

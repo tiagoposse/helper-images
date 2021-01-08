@@ -61,11 +61,19 @@ class ArgsParsing:
 
     args = {}
     for a in self.args:
-      if a['env'] in os.environ:
+      if 'env' in a and a['env'] in os.environ:
         args[a['dest']] = os.environ[a['env']]
     
     return args
 
+  def validate_args(self, args, val_list):
+    valid = True
+    for a in val_list:
+      if args[a] == None:
+        print(f"Argument { a } is not valid.")
+        valid = False
+        
+    return valid
 
   def _parse_conf(self, conf_path):
     args = {}
