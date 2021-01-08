@@ -102,17 +102,8 @@ class Vault:
 
     logging.info(f"Unsealing replica 0")
     self.client.sys.submit_unseal_keys(keys=keys)
-    while True:
-      resp = self.client.sys.read_health_status(method='GET')
-      if (not isinstance(resp, dict)) and resp.status_code == 429:
-        logging.debug("Not ready yet, wait")
-        time.sleep(1)
-      else:
-        time.sleep(5)
-        break
 
-    for i in range(1, replicas):
-
+    for i in range(0, replicas):
       if self.ca != None:
         aux_client = hvac.Client(url=f"{ self.scheme }://vault-{ i }.{ self.addr }", verify=self.ca)
       else:
@@ -127,6 +118,16 @@ class Vault:
         except:
           retry += 1
           time.sleep(2)
+
+    # while True:
+    #   resp = self.client.sys.read_health_status(method='GET')
+    #   if (not isinstance(resp, dict)) and resp.status_code == 429:
+    #     logging.debug("Not ready yet, wait")
+    #     time.sleep(1)
+    #   else:
+    #     time.sleep(5)
+    #     break
+
 
       while aux_client.sys.is_sealed():
         time.sleep(2)
