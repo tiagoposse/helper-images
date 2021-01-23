@@ -1,0 +1,124 @@
+---
+kind: pipeline
+type: kubernetes
+name: cluster-droid
+
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+- name: Prep version
+  image: alpine
+  commands:
+  - printf "`cat cluster-droid/VERSION`,latest" > .tags
+
+- name: build
+  image: registry.tiagoposse.com/drone-kaniko
+  settings:
+    build_args:
+    - HELM_VERSION=3.4.2
+    - KUBECTL_VERSION=1.18.10
+    context: ./cluster-droid
+    dockerfile: ./cluster-droid/Dockerfile
+    insecure: true
+    mtu: 1440
+    password: empty
+    registry: registry.tiagoposse.com
+    repo: registry.tiagoposse.com/cluster-droid
+    use_cache: true
+    username: tiago
+
+volumes:
+- name: cache
+  host:
+    path: /var/cache
+- name: docker
+  host:
+    path: /var/cache/${DRONE_REPO}/docker
+
+trigger:
+  paths:
+  - cluster-droid/*
+
+---
+kind: pipeline
+type: kubernetes
+name: vault-agent
+
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+- name: Prep version
+  image: alpine
+  commands:
+  - printf "`cat vault-agent/VERSION`,latest" > .tags
+
+- name: build
+  image: registry.tiagoposse.com/drone-kaniko
+  settings:
+    context: ./vault-agent
+    dockerfile: ./vault-agent/Dockerfile
+    insecure: true
+    mtu: 1440
+    password: empty
+    registry: registry.tiagoposse.com
+    repo: registry.tiagoposse.com/vault-agent
+    use_cache: true
+    username: tiago
+
+volumes:
+- name: cache
+  host:
+    path: /var/cache
+- name: docker
+  host:
+    path: /var/cache/${DRONE_REPO}/docker
+
+trigger:
+  paths:
+  - vault-agent/*
+
+---
+kind: pipeline
+type: kubernetes
+name: zipalign
+
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+- name: Prep version
+  image: alpine
+  commands:
+  - printf "`cat zipalign/VERSION`,latest" > .tags
+
+- name: build
+  image: registry.tiagoposse.com/drone-kaniko
+  settings:
+    context: ./zipalign
+    dockerfile: ./zipalign/Dockerfile
+    insecure: true
+    mtu: 1440
+    password: empty
+    registry: registry.tiagoposse.com
+    repo: registry.tiagoposse.com/zipalign
+    use_cache: true
+    username: tiago
+
+volumes:
+- name: cache
+  host:
+    path: /var/cache
+- name: docker
+  host:
+    path: /var/cache/${DRONE_REPO}/docker
+
+trigger:
+  paths:
+  - zipalign/*
+
+...
