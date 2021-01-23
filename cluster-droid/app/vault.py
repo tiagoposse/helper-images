@@ -147,12 +147,6 @@ class Vault:
       'kv',
       description=description,
       path=mount_point,
-      config={
-        'version': 2,
-        'default_lease_ttl': DEFAULT_TTL,
-        'max_lease_ttl': DEFAULT_TTL,
-        'force_no_cache': False
-      },
       options=options
     )
 

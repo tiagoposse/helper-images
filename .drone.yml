@@ -5,37 +5,14 @@ name: cluster-droid
 
 platform:
   os: linux
-  arch: arm64
+  arch: arm
 
 steps:
-- name: Prep version
-  image: alpine
+- name: build
+  image: registry.tiagoposse.com/kaniko-arm:1.2.0
   commands:
   - printf "`cat cluster-droid/VERSION`,latest" > .tags
-
-- name: build
-  image: registry.tiagoposse.com/drone-kaniko
-  settings:
-    build_args:
-    - HELM_VERSION=3.4.2
-    - KUBECTL_VERSION=1.18.10
-    context: ./cluster-droid
-    dockerfile: ./cluster-droid/Dockerfile
-    insecure: true
-    mtu: 1440
-    password: empty
-    registry: registry.tiagoposse.com
-    repo: registry.tiagoposse.com/cluster-droid
-    use_cache: true
-    username: tiago
-
-volumes:
-- name: cache
-  host:
-    path: /var/cache
-- name: docker
-  host:
-    path: /var/cache/${DRONE_REPO}/docker
+  - /kaniko/executor --dockerfile=./cluster-droid/Dockerfile --context=cluster-droid  --cache=true --cache-repo=registry.tiagoposse.com/cluster-droid  --destination=registry.tiagoposse.com/cluster-droid  --build-arg=HELM_VERSION=3.4.2 --build-arg=KUBECTL_VERSION=1.18.10 --build-arg=VAULT_VERSION=1.6.1
 
 trigger:
   paths:
@@ -48,34 +25,14 @@ name: vault-agent
 
 platform:
   os: linux
-  arch: arm64
+  arch: arm
 
 steps:
-- name: Prep version
-  image: alpine
+- name: build
+  image: registry.tiagoposse.com/kaniko-arm:1.2.0
   commands:
   - printf "`cat vault-agent/VERSION`,latest" > .tags
-
-- name: build
-  image: registry.tiagoposse.com/drone-kaniko
-  settings:
-    context: ./vault-agent
-    dockerfile: ./vault-agent/Dockerfile
-    insecure: true
-    mtu: 1440
-    password: empty
-    registry: registry.tiagoposse.com
-    repo: registry.tiagoposse.com/vault-agent
-    use_cache: true
-    username: tiago
-
-volumes:
-- name: cache
-  host:
-    path: /var/cache
-- name: docker
-  host:
-    path: /var/cache/${DRONE_REPO}/docker
+  - "/kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent  --cache=true --cache-repo=registry.tiagoposse.com/vault-agent  --destination=registry.tiagoposse.com/vault-agent "
 
 trigger:
   paths:
@@ -88,37 +45,37 @@ name: zipalign
 
 platform:
   os: linux
-  arch: arm64
+  arch: arm
 
 steps:
-- name: Prep version
-  image: alpine
+- name: build
+  image: registry.tiagoposse.com/kaniko-arm:1.2.0
   commands:
   - printf "`cat zipalign/VERSION`,latest" > .tags
-
-- name: build
-  image: registry.tiagoposse.com/drone-kaniko
-  settings:
-    context: ./zipalign
-    dockerfile: ./zipalign/Dockerfile
-    insecure: true
-    mtu: 1440
-    password: empty
-    registry: registry.tiagoposse.com
-    repo: registry.tiagoposse.com/zipalign
-    use_cache: true
-    username: tiago
-
-volumes:
-- name: cache
-  host:
-    path: /var/cache
-- name: docker
-  host:
-    path: /var/cache/${DRONE_REPO}/docker
+  - "/kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign  --cache=true --cache-repo=registry.tiagoposse.com/zipalign  --destination=registry.tiagoposse.com/zipalign "
 
 trigger:
   paths:
   - zipalign/*
+
+---
+kind: pipeline
+type: kubernetes
+name: kaniko-arm
+
+platform:
+  os: linux
+  arch: arm
+
+steps:
+- name: build
+  image: registry.tiagoposse.com/kaniko-arm:1.2.0
+  commands:
+  - printf "`cat kaniko-arm/VERSION`,latest" > .tags
+  - "/kaniko/executor --dockerfile=./kaniko-arm/Dockerfile --context=kaniko-arm  --cache=true --cache-repo=registry.tiagoposse.com/kaniko-arm  --destination=registry.tiagoposse.com/kaniko-arm "
+
+trigger:
+  paths:
+  - kaniko-arm/*
 
 ...

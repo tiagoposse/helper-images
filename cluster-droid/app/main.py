@@ -41,9 +41,9 @@ def process_hook(args, hook, vault):
 
 def upgrade_deployment(vault, args):
   process = {
-    'pre': 'hooks' in args['details'] and 'preInstall' in args['details']['hooks'] and args['hooks'] in ["only", "only-pre", "pre"],
-    'post': 'hooks' in args['details'] and 'postInstall' in args['details']['hooks'] and args['hooks'] in ["only", "only-post", "post"],
-    'helm': 'chart' in args['details'] and not args['hooks'].startswith("only")
+    'pre': 'hooks' in args['details'] and 'preInstall' in args['details']['hooks'] and (not args['hooks'] or args['hooks'] in ["only", "only-pre", "pre"]),
+    'post': 'hooks' in args['details'] and 'postInstall' in args['details']['hooks'] and (not args['hooks'] or args['hooks'] in ["only", "only-post", "post"]),
+    'helm': 'releases' in args['details'] and (not args['hooks'] or args['hooks'].startswith("only"))
   }
 
   wait = args['wait'] or (args['action'] == 'upgrade' and process['post'])
@@ -61,7 +61,18 @@ def upgrade_deployment(vault, args):
       process_hook(args, hook, vault)
 
   if process['helm']:
-    execute_helm(args)
+    for release in args['details']['releases']:
+      execute_helm(
+        args['action'],
+        release['namespace'] if 'namespace' in release else args['details']['namespace'],
+        release['name'],
+        release['chart'],
+        release['version'],
+        f"{ args['_base_path'] }/{release['valuesFile'] }" if 'valuesFile' in release else '',
+        release['url'] if 'url' in release else '',
+        wait,
+        'insecure' not in release or release['insecure']
+      )
 
   if process['post']:
     print('Execute postInstall hooks')
