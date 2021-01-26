@@ -1,5 +1,3 @@
-ARG APP_VERSION=0.6.0
-
 FROM arm64v8/golang:alpine as build-env
 
 ARG APP_VERSION
