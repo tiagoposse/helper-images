@@ -1,26 +1,6 @@
 ---
 kind: pipeline
 type: kubernetes
-name: cluster-droid
-
-platform:
-  os: linux
-  arch: arm
-
-steps:
-- name: build
-  image: registry.tiagoposse.com/kaniko-arm:1.2.0
-  commands:
-  - printf "`cat cluster-droid/VERSION`,latest" > .tags
-  - /kaniko/executor --dockerfile=./cluster-droid/Dockerfile --context=cluster-droid  --cache=true --cache-repo=registry.tiagoposse.com/cluster-droid  --destination=registry.tiagoposse.com/cluster-droid  --build-arg=HELM_VERSION=3.4.2 --build-arg=KUBECTL_VERSION=1.18.10 --build-arg=VAULT_VERSION=1.6.1
-
-trigger:
-  paths:
-  - cluster-droid/*
-
----
-kind: pipeline
-type: kubernetes
 name: vault-agent
 
 platform:
