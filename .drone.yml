@@ -1,82 +1,78 @@
 ---
 kind: pipeline
 type: kubernetes
-name: vault-agent
+name: build vault
 
 platform:
   os: linux
   arch: arm
 
-# build: &build
+trigger:
+    paths:
+      - vault-agent/VERSION
+
+steps:
+  - name: build
+    image: registry.tiagoposse.com/kaniko-arm:1.2.0
+    commands: 
+      - export VERSION=$(cat vault-agent/VERSION)
+      - echo $VERSION
+      - >
+        /kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent
+        --cache=true --cache-repo=registry.tiagoposse.com/vault-agent
+        -d registry.tiagoposse.com/vault-agent:$VERSION
+        -d registry.tiagoposse.com/vault-agent:latest
+        --build-arg=APP_VERSION=$VERSION
+---
+kind: pipeline
+type: kubernetes
+name: build zipalign
+
+platform:
+  os: linux
+  arch: arm
+
+trigger:
+  - paths:
+    - zipalign/VERSION
+  - event: custom
+
+steps:
+  - name: build
+    image: registry.tiagoposse.com/kaniko-arm:1.2.0
+    depends_on: []
+    commands:
+    - export VERSION=$(cat zipalign/VERSION)
+    - echo $VERSION
+    - >
+      /kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign
+      --cache=true --cache-repo=registry.tiagoposse.com/zipalign
+      -d=registry.tiagoposse.com/zipalign$VERSION
+      -d=registry.tiagoposse.com/zipalign:latest
+
+---
+kind: pipeline
+type: kubernetes
+name: build kaniko
+
+platform:
+  os: linux
+  arch: arm
+
+trigger:
+  paths:
+    - kaniko-arm/VERSION
 
 steps:
   - name: build
     image: registry.tiagoposse.com/kaniko-arm:1.2.0
     commands:
+      - export VERSION=$(cat kaniko-arm/VERSION)
+      - echo $VERSION
       - >
-        /kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent
-        --cache=true --cache-repo=registry.tiagoposse.com/vault-agent
-        -d registry.tiagoposse.com/vault-agent:$(cat vault-agent/VERSION)
-        -d registry.tiagoposse.com/vault-agent:latest
-        --build-arg=APP_VERSION=0.7.0 
-    when:
-      paths:
-      - vault-agent/*
-
-  - name: build
-    image: registry.tiagoposse.com/kaniko-arm:1.2.0
-    commands:
-      - >
-        /kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent
-        --cache=true --cache-repo=registry.tiagoposse.com/vault-agent
-        -d registry.tiagoposse.com/vault-agent:$(cat vault-agent/VERSION)
-        -d registry.tiagoposse.com/vault-agent:latest
-        --build-arg=APP_VERSION=0.7.0 
-    when:
-      event: custom
----
-kind: pipeline
-type: kubernetes
-name: zipalign
-
-platform:
-  os: linux
-  arch: arm
-
-steps:
-- name: build
-  image: registry.tiagoposse.com/kaniko-arm:1.2.0
-  commands:
-  - printf "`cat zipalign/VERSION`,latest" > .tags
-  - >
-    /kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign
-    --cache=true --cache-repo=registry.tiagoposse.com/zipalign
-    --destination=registry.tiagoposse.com/zipalign
-
-trigger:
-  paths:
-  - zipalign/*
-
----
-kind: pipeline
-type: kubernetes
-name: kaniko-arm
-
-platform:
-  os: linux
-  arch: arm
-
-steps:
-- name: build
-  image: registry.tiagoposse.com/kaniko-arm:1.2.0
-  commands:
-  - printf "`cat kaniko-arm/VERSION`,latest" > .tags
-  - >
-    /kaniko/executor --dockerfile=./kaniko-arm/Dockerfile --context=kaniko-arm
-    --cache=true --cache-repo=registry.tiagoposse.com/kaniko-arm
-    --destination=registry.tiagoposse.com/kaniko-arm
-trigger:
-  paths:
-  - kaniko-arm/*
-
+        /kaniko/executor --dockerfile=./kaniko-arm/Dockerfile --context=kaniko-arm
+        --cache=true --cache-repo=registry.tiagoposse.com/kaniko-arm
+        -d=registry.tiagoposse.com/kaniko-arm:$VERSION
+        -d=registry.tiagoposse.com/kaniko-arm:latest
+        --build-arg=$VERSION
 ...
