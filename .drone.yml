@@ -74,5 +74,30 @@ steps:
         --cache=true --cache-repo=registry.tiagoposse.com/kaniko-arm
         -d=registry.tiagoposse.com/kaniko-arm:$VERSION
         -d=registry.tiagoposse.com/kaniko-arm:latest
-        --build-arg=$VERSION
+        --build-arg=VERSION=$VERSION
+---
+kind: pipeline
+type: kubernetes
+name: build terraform
+
+platform:
+  os: linux
+  arch: arm
+
+trigger:
+  paths:
+    - terraform/VERSION
+
+steps:
+  - name: build
+    image: registry.tiagoposse.com/kaniko-arm:1.2.0
+    commands:
+      - export VERSION=$(cat terraform/VERSION)
+      - echo $VERSION
+      - >
+        /kaniko/executor --dockerfile=./terraform/Dockerfile --context=terraform
+        --cache=true --cache-repo=registry.tiagoposse.com/terraform
+        -d=registry.tiagoposse.com/terraform:$VERSION
+        -d=registry.tiagoposse.com/terraform:latest
+        --build-arg=VERSION=$VERSION
 ...
