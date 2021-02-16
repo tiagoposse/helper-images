@@ -1,103 +1,75 @@
 ---
 kind: pipeline
 type: kubernetes
-name: build vault
+name: Build images
 
 platform:
   os: linux
   arch: arm
 
-trigger:
-    paths:
-      - vault-agent/VERSION
 
 steps:
-  - name: build
-    image: registry.tiagoposse.com/kaniko-arm:1.2.0
-    commands: 
-      - export VERSION=$(cat vault-agent/VERSION)
-      - echo $VERSION
+  - name: dep
+    image: busybox
+    commands:
+      - echo "dependency"
+
+  - name: vault-agent
+    image: registry.tiagoposse.com/kaniko-arm:1.3.0
+    depends_on: ["dep"]
+    commands:
+      - export VERSION=$(cat vault-agent/VERSION) && echo $VERSION
       - >
         /kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent
         --cache=true --cache-repo=registry.tiagoposse.com/vault-agent
         -d registry.tiagoposse.com/vault-agent:$VERSION
         -d registry.tiagoposse.com/vault-agent:latest
         --build-arg=APP_VERSION=$VERSION
----
-kind: pipeline
-type: kubernetes
-name: build zipalign
+    when:
+      paths:
+        - vault-agent/**/*
 
-platform:
-  os: linux
-  arch: arm
-
-trigger:
-  - paths:
-    - zipalign/VERSION
-  - event: custom
-
-steps:
-  - name: build
-    image: registry.tiagoposse.com/kaniko-arm:1.2.0
-    depends_on: []
+  - name: zipalign
+    image: registry.tiagoposse.com/kaniko-arm:1.3.0
+    depends_on: ["dep"]
     commands:
-    - export VERSION=$(cat zipalign/VERSION)
-    - echo $VERSION
-    - >
-      /kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign
-      --cache=true --cache-repo=registry.tiagoposse.com/zipalign
-      -d=registry.tiagoposse.com/zipalign$VERSION
-      -d=registry.tiagoposse.com/zipalign:latest
+      - export VERSION=$(cat zipalign/VERSION) && echo $VERSION
+      - >
+        /kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign
+        --cache=true --cache-repo=registry.tiagoposse.com/zipalign
+        -d=registry.tiagoposse.com/zipalign$VERSION
+        -d=registry.tiagoposse.com/zipalign:latest
+    when:
+      paths:
+        - zipalign/**/*
 
----
-kind: pipeline
-type: kubernetes
-name: build kaniko
-
-platform:
-  os: linux
-  arch: arm
-
-trigger:
-  paths:
-    - kaniko-arm/VERSION
-
-steps:
-  - name: build
-    image: registry.tiagoposse.com/kaniko-arm:1.2.0
+  - name: kaniko-arm
+    image: registry.tiagoposse.com/kaniko-arm:1.3.0
+    depends_on: ["dep"]
     commands:
-      - export VERSION=$(cat kaniko-arm/VERSION)
-      - echo $VERSION
+      - export VERSION=$(cat kaniko-arm/VERSION) && echo $VERSION
       - >
         /kaniko/executor --dockerfile=./kaniko-arm/Dockerfile --context=kaniko-arm
         --cache=true --cache-repo=registry.tiagoposse.com/kaniko-arm
         -d=registry.tiagoposse.com/kaniko-arm:$VERSION
         -d=registry.tiagoposse.com/kaniko-arm:latest
         --build-arg=VERSION=$VERSION
----
-kind: pipeline
-type: kubernetes
-name: build terraform
+    when:
+      paths:
+        - kaniko-arm/**/*
 
-platform:
-  os: linux
-  arch: arm
-
-trigger:
-  paths:
-    - terraform/VERSION
-
-steps:
-  - name: build
-    image: registry.tiagoposse.com/kaniko-arm:1.2.0
+  - name: terraform
+    image: registry.tiagoposse.com/kaniko-arm:1.3.0
+    depends_on: ["dep"]
     commands:
-      - export VERSION=$(cat terraform/VERSION)
-      - echo $VERSION
+      - export VERSION=$(cat terraform/VERSION) && echo $VERSION
       - >
         /kaniko/executor --dockerfile=./terraform/Dockerfile --context=terraform
         --cache=true --cache-repo=registry.tiagoposse.com/terraform
         -d=registry.tiagoposse.com/terraform:$VERSION
         -d=registry.tiagoposse.com/terraform:latest
         --build-arg=VERSION=$VERSION
+    when:
+      paths:
+        - terraform/**/*
 ...
