@@ -1,4 +1,4 @@
-ARG VERSION
+ARG VERSION="1.3.0"
 
 FROM gcr.io/kaniko-project/executor:arm64-v${VERSION}
 

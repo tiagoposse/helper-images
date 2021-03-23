@@ -18,22 +18,20 @@ steps:
     image: registry.tiagoposse.com/kaniko-arm:1.3.0
     depends_on: ["dep"]
     commands:
-      - export VERSION=$(cat vault-agent/VERSION) && echo $VERSION
       - >
-        /kaniko/executor --dockerfile=./vault-agent/Dockerfile --context=vault-agent
+        /kaniko/executor --dockerfile=./vault-agent-arm64.dockerfile
         --cache=true --cache-repo=registry.tiagoposse.com/vault-agent
         -d registry.tiagoposse.com/vault-agent:$VERSION
         -d registry.tiagoposse.com/vault-agent:latest
         --build-arg=APP_VERSION=$VERSION
     when:
       paths:
-        - vault-agent/**/*
+        - vault-agent-arm64.dockerfile
 
   - name: zipalign
     image: registry.tiagoposse.com/kaniko-arm:1.3.0
     depends_on: ["dep"]
     commands:
-      - export VERSION=$(cat zipalign/VERSION) && echo $VERSION
       - >
         /kaniko/executor --dockerfile=./zipalign/Dockerfile --context=zipalign
         --cache=true --cache-repo=registry.tiagoposse.com/zipalign

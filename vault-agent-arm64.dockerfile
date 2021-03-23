@@ -1,6 +1,7 @@
 FROM arm64v8/golang:alpine as build-env
 
-ARG APP_VERSION=0.8.0
+ARG VERSION="1.0.0"
+ARG APP_VERSION="0.8.0"
 
 RUN apk add --no-cache git
 
